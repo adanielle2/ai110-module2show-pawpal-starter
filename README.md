@@ -41,3 +41,19 @@ pip install -r requirements.txt
 5. Add tests to verify key behaviors.
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
+
+## Smarter Scheduling
+
+PawPal+ goes beyond a simple to-do list. The scheduler includes four pieces of algorithmic intelligence:
+
+**Sorting by deadline**
+Tasks are sorted by priority first (HIGH before MEDIUM before LOW), then by `deadline_hour` within each tier so the most urgent task in a group always schedules first.
+
+**Filtering**
+The `Scheduler` exposes `sort_by_time()`, `filter_by_status()`, and `filter_by_pet()` methods. `Owner` also provides `get_tasks_by_pet()`, `get_tasks_by_status()`, and `get_tasks_by_category()` so the UI can show targeted views without returning everything.
+
+**Recurring tasks**
+Each `Task` has a `frequency` field (`"daily"`, `"weekly"`, or `"once"`). When `Pet.complete_task()` is called, it marks the task done and automatically appends the next occurrence with a new `due_date` calculated using `timedelta`. One-off tasks are not repeated.
+
+**Conflict detection**
+Before building the plan, `_detect_conflicts()` scans for two types of problems: tasks that share the same `deadline_hour` (potential overlap) and tasks whose projected start time already exceeds their deadline. Conflicts are collected as warning strings and shown at the top of the plan — the scheduler never crashes, it just tells you what to watch out for.
