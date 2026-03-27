@@ -3,32 +3,25 @@
 ## 1. System Design
 
 **a. Initial design**
-1. Register a Pet Profile
-The owner enters basic information about their pet such as name, species, age, and any special notes (e.g., "on medication," "anxious around strangers"). This profile is the foundation for everything else: the scheduler uses it to filter which tasks are relevant and to apply pet-specific constraints when building the daily plan.
 
-2. Add and Manage Care Tasks
-The owner creates tasks that need to happen during the day such as things like a morning walk, lunchtime feeding, an evening medication dose, or a weekly grooming session. Each task has at least a name, an estimated duration, and a priority level (e.g., High / Medium / Low). The owner can also edit or remove tasks as the pet's routine changes.
+The system is split into six classes with clear, non-overlapping responsibilities:
 
-3. Generate and View the Daily Plan
-The owner requests a daily schedule. The app considers all pending tasks, the owner's available time window for the day, and each task's priority, then produces an ordered plan that fits within the time budget. The plan is displayed clearly — showing each task, its scheduled time slot, and a short explanation of why it was placed where it was (e.g., "Medication scheduled first because it is High priority and time-sensitive").
-
-Pet
-— a plain data container for owner-entered profile info. No scheduling logic lives here; it just holds what the scheduler needs to know about the animal.
-Task 
-— represents a single care item. It knows its own duration, priority, category (walk, feeding, meds, etc.), and an optional time window (e.g. "must happen before 9am"). is_time_sensitive() lets the scheduler ask whether a task has a hard window constraint.
-Priority 
-— an IntEnum with values 1/2/3 so that sorting by priority is just a numeric sort. HIGH sorts before MEDIUM sorts before LOW.
-Scheduler 
-— the brain. It holds a Pet, a list of Tasks, and the owner's available minutes for the day. Its one public method, generate_plan(), applies the scheduling logic and returns a DailyPlan.
-DailyPlan 
-— the output. It holds an ordered list of PlanSlots (the tasks that fit), a count of total minutes used, and a list of tasks that couldn't be scheduled (budget exceeded or no valid window). summary() returns a human-readable string for the UI.
-PlanSlot 
-— wraps a single scheduled Task with its assigned start time and a reason string explaining why it was placed there (e.g. "High priority; scheduled first"). This is the key piece that makes the plan explainable.
+- **`Pet`** — a plain dataclass that holds owner-entered profile info (name, species, age, notes). No scheduling logic lives here; it is purely a data container passed to the Scheduler.
+- **`Task`** — a dataclass representing a single care item. It stores duration, priority, category, and an optional `deadline_hour`. Its one method, `is_time_sensitive()`, lets the Scheduler ask whether the task has a hard time constraint.
+- **`Priority`** — an `IntEnum` (`HIGH=1`, `MEDIUM=2`, `LOW=3`). Using integers means sorting tasks by priority requires no custom comparator — a plain numeric sort works.
+- **`Scheduler`** — the only class with real logic. It owns a `Pet`, a list of `Task`s, the owner's `available_minutes`, and a `day_start_hour`. Its public interface is a single method, `generate_plan()`, which returns a `DailyPlan`. Private helpers (`_sort_by_priority`, `_fits_in_budget`) keep the public method readable.
+- **`DailyPlan`** — the output dataclass. It holds the ordered list of `PlanSlot`s that fit within the time budget, a count of `total_minutes_used`, a list of `skipped_tasks` (budget exceeded or deadline missed), and the `plan_date`. `summary()` formats it for the Streamlit UI.
+- **`PlanSlot`** — wraps a scheduled `Task` with a concrete `start_time` string and a `reason` that explains the placement decision. This is what makes the plan explainable to the user.
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+After an AI review of the skeleton, three changes were made:
+
+1. **`time_window: Optional[str]` → `deadline_hour: Optional[int]`** — The original design stored the time constraint as a raw string (e.g., `"before 9am"`). The AI flagged that `is_time_sensitive()` would need to parse that string, which is fragile and error-prone. Replacing it with a plain integer hour (e.g., `9` meaning "must start before 9 AM") makes the constraint machine-readable without any parsing.
+
+2. **Added `plan_date: date` to `DailyPlan`** — The original skeleton imported `date` from the standard library but never used it. A `DailyPlan` with no date field has no way to identify which day it belongs to. Adding `plan_date` (defaulting to today) fixes this missing relationship.
+
+3. **Added `day_start_hour: int` to `Scheduler`** — Without knowing what time the day begins, `generate_plan()` cannot assign real clock times to `PlanSlot.start_time`. Adding `day_start_hour` (defaulting to `8` for 8 AM) gives the scheduler the anchor it needs to compute actual slot times.
 
 ---
 

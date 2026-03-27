@@ -26,22 +26,25 @@ class Task:
     duration_minutes: int
     priority: Priority
     category: str
-    time_window: Optional[str] = None  # e.g. "before 9am"
+    # Hour of day by which the task must start (e.g. 9 means "before 9 AM").
+    # Using int instead of a raw string avoids fragile string parsing in is_time_sensitive().
+    deadline_hour: Optional[int] = None
 
     def is_time_sensitive(self) -> bool:
-        """Return True if this task has a hard time-window constraint."""
+        """Return True if this task has a hard deadline constraint."""
         ...
 
 
 @dataclass
 class PlanSlot:
     task: Task
-    start_time: str
+    start_time: str  # e.g. "8:00 AM"
     reason: str
 
 
 @dataclass
 class DailyPlan:
+    plan_date: date = field(default_factory=date.today)
     slots: list[PlanSlot] = field(default_factory=list)
     total_minutes_used: int = 0
     skipped_tasks: list[Task] = field(default_factory=list)
@@ -52,9 +55,15 @@ class DailyPlan:
 
 
 class Scheduler:
-    def __init__(self, pet: Pet, available_minutes: int) -> None:
+    def __init__(
+        self,
+        pet: Pet,
+        available_minutes: int,
+        day_start_hour: int = 8,
+    ) -> None:
         self.pet = pet
         self.available_minutes = available_minutes
+        self.day_start_hour = day_start_hour  # clock hour the day begins (e.g. 8 → 8 AM)
         self.tasks: list[Task] = []
 
     def add_task(self, task: Task) -> None:
