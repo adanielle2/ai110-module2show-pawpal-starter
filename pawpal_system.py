@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from enum import IntEnum
 from typing import Optional
 
@@ -21,6 +21,7 @@ class Task:
     deadline_hour: Optional[int] = None
     frequency: str = "daily"
     completed: bool = False
+    due_date: date = field(default_factory=date.today)
 
     def is_time_sensitive(self) -> bool:
         """Return True if this task has a hard deadline constraint."""
@@ -38,6 +39,25 @@ class Task:
             return today.weekday() == 0
         return True
 
+    def next_occurrence(self) -> Optional[Task]:
+        """Return a fresh copy of this task scheduled for its next due date, or None if it only runs once."""
+        if self.frequency == "daily":
+            next_date = self.due_date + timedelta(days=1)
+        elif self.frequency == "weekly":
+            next_date = self.due_date + timedelta(weeks=1)
+        else:
+            return None
+        return Task(
+            title=self.title,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            category=self.category,
+            deadline_hour=self.deadline_hour,
+            frequency=self.frequency,
+            completed=False,
+            due_date=next_date,
+        )
+
 
 @dataclass
 class Pet:
@@ -54,6 +74,17 @@ class Pet:
     def remove_task(self, title: str) -> None:
         """Remove a task from this pet's list by its title."""
         self.tasks = [t for t in self.tasks if t.title != title]
+
+    def complete_task(self, title: str) -> Optional[Task]:
+        """Mark a task complete and, if it recurs, automatically add the next occurrence to this pet's list."""
+        for task in self.tasks:
+            if task.title == title and not task.completed:
+                task.mark_complete()
+                next_task = task.next_occurrence()
+                if next_task:
+                    self.tasks.append(next_task)
+                return next_task
+        return None
 
 
 @dataclass
