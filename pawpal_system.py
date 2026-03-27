@@ -26,6 +26,9 @@ class Task:
         """Return True if this task has a hard deadline constraint."""
         return self.deadline_hour is not None
 
+    def mark_complete(self) -> None:
+        self.completed = True
+
 
 @dataclass
 class Pet:
