@@ -30,6 +30,14 @@ class Task:
         """Mark this task as done so the scheduler knows to skip it."""
         self.completed = True
 
+    def should_run_today(self, today: date) -> bool:
+        """Return True if this task is due to run on the given date based on its frequency."""
+        if self.frequency == "once":
+            return not self.completed
+        if self.frequency == "weekly":
+            return today.weekday() == 0
+        return True
+
 
 @dataclass
 class Pet:
@@ -68,6 +76,21 @@ class Owner:
             tasks.extend(pet.tasks)
         return tasks
 
+    def get_tasks_by_pet(self, pet_name: str) -> list[Task]:
+        """Return all tasks belonging to the pet with the given name."""
+        for pet in self.pets:
+            if pet.name == pet_name:
+                return list(pet.tasks)
+        return []
+
+    def get_tasks_by_status(self, completed: bool) -> list[Task]:
+        """Return all tasks that match the given completion status."""
+        return [t for t in self.get_all_tasks() if t.completed == completed]
+
+    def get_tasks_by_category(self, category: str) -> list[Task]:
+        """Return all tasks that belong to the given category."""
+        return [t for t in self.get_all_tasks() if t.category == category]
+
 
 @dataclass
 class PlanSlot:
@@ -82,6 +105,7 @@ class DailyPlan:
     slots: list[PlanSlot] = field(default_factory=list)
     total_minutes_used: int = 0
     skipped_tasks: list[Task] = field(default_factory=list)
+    conflicts: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
         """Return a human-readable summary of the plan for display in the UI."""
@@ -90,6 +114,11 @@ class DailyPlan:
             f"Time used: {self.total_minutes_used} min",
             "",
         ]
+        if self.conflicts:
+            lines.append("⚠️  Conflicts detected:")
+            for c in self.conflicts:
+                lines.append(f"  ! {c}")
+            lines.append("")
         if self.slots:
             lines.append("Scheduled:")
             for slot in self.slots:
@@ -123,13 +152,15 @@ class Scheduler:
 
     def generate_plan(self) -> DailyPlan:
         """Retrieve all tasks from the owner's pets, sort by priority, fit into budget, return a DailyPlan."""
+        today = date.today()
         plan = DailyPlan()
         used = 0
         current_minutes = self.day_start_hour * 60
 
-        for task in self._sort_by_priority():
-            if task.completed:
-                continue
+        sorted_tasks = self._sort_by_priority(today)
+        plan.conflicts = self._detect_conflicts(sorted_tasks)
+
+        for task in sorted_tasks:
             if self._fits_in_budget(task, used):
                 start_time = self._minutes_to_time(current_minutes)
                 if task.priority == Priority.HIGH and task.is_time_sensitive():
@@ -149,16 +180,35 @@ class Scheduler:
         plan.total_minutes_used = used
         return plan
 
-    def _sort_by_priority(self) -> list[Task]:
-        """Return all tasks from owner's pets sorted HIGH → MEDIUM → LOW (time-sensitive first within each tier)."""
+    def _sort_by_priority(self, today: date) -> list[Task]:
+        """Sort tasks HIGH→LOW; within each tier, earliest deadline first; skip completed and non-recurring."""
+        eligible = [
+            t for t in self.owner.get_all_tasks()
+            if not t.completed and t.should_run_today(today)
+        ]
         return sorted(
-            self.owner.get_all_tasks(),
-            key=lambda t: (t.priority.value, not t.is_time_sensitive()),
+            eligible,
+            key=lambda t: (t.priority.value, t.deadline_hour if t.deadline_hour is not None else 999),
         )
 
     def _fits_in_budget(self, task: Task, used_minutes: int) -> bool:
         """Return True if adding this task would not exceed available_minutes."""
         return used_minutes + task.duration_minutes <= self.available_minutes
+
+    def _detect_conflicts(self, tasks: list[Task]) -> list[str]:
+        """Flag any time-sensitive task that would start after its deadline given the current order."""
+        conflicts = []
+        current_minutes = self.day_start_hour * 60
+        for task in tasks:
+            if task.is_time_sensitive():
+                start_hour = current_minutes / 60
+                if start_hour >= task.deadline_hour:
+                    conflicts.append(
+                        f"'{task.title}' needs to start before {task.deadline_hour}:00 "
+                        f"but would start at {self._minutes_to_time(current_minutes)}"
+                    )
+            current_minutes += task.duration_minutes
+        return conflicts
 
     def _minutes_to_time(self, minutes: int) -> str:
         """Convert a number of minutes since midnight into a readable time like '8:30 AM'."""
