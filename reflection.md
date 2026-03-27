@@ -21,13 +21,13 @@ After reviewing the skeleton, three things got changed. First, the time constrai
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers five constraints: task priority (HIGH/MEDIUM/LOW), time budget (how many minutes the owner has available), deadline hour (tasks that must start before a certain time), completion status (already-done tasks are skipped), and frequency (whether a task is even due today based on daily/weekly/once). I decided priority and time budget mattered most because they affect every task — deadlines only apply to a subset, and frequency is more of a pre-filter than a real constraint.
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+The conflict detection flags any two tasks that share the same deadline_hour as a potential overlap, but it doesn't check whether their combined duration actually fits before the deadline. So two 5-minute tasks both due by 9am — when the day starts at 8am and there's a full hour — still get flagged even though they'd both easily fit. That's a false positive.
+
+I kept this simpler version because the math to check exact duration fit adds a lot of complexity, and for a pet care app it's better to warn the owner too often than to miss a real conflict. The user can always look at the schedule and decide for themselves whether the warning matters.
 
 ---
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import IntEnum
@@ -245,10 +246,10 @@ class Scheduler:
         """Return warning strings for deadline violations and same-window overlaps; never raises an exception."""
         conflicts = []
 
-        deadline_groups: dict[int, list[str]] = {}
+        deadline_groups: defaultdict[int, list[str]] = defaultdict(list)
         for task in tasks:
             if task.is_time_sensitive():
-                deadline_groups.setdefault(task.deadline_hour, []).append(task.title)
+                deadline_groups[task.deadline_hour].append(task.title)
         for hour, titles in deadline_groups.items():
             if len(titles) > 1:
                 conflicts.append(
