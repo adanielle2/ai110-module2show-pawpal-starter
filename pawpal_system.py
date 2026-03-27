@@ -21,6 +21,18 @@ class Pet:
 
 
 @dataclass
+class Owner:
+    name: str
+    pets: list[Pet] = field(default_factory=list)
+
+    def add_pet(self, pet: Pet) -> None:
+        self.pets.append(pet)
+
+    def get_all_pets(self) -> list[Pet]:
+        return list(self.pets)
+
+
+@dataclass
 class Task:
     title: str
     duration_minutes: int
@@ -72,14 +84,18 @@ class DailyPlan:
 class Scheduler:
     def __init__(
         self,
-        pet: Pet,
+        owner: Owner,
         available_minutes: int,
         day_start_hour: int = 8,
     ) -> None:
-        self.pet = pet
+        self.owner = owner
         self.available_minutes = available_minutes
         self.day_start_hour = day_start_hour
         self.tasks: list[Task] = []
+
+    @property
+    def pet(self) -> Optional[Pet]:
+        return self.owner.pets[0] if self.owner.pets else None
 
     def add_task(self, task: Task) -> None:
         """Add a task to the scheduler's task list."""
