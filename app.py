@@ -5,9 +5,6 @@ st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
 st.title("🐾 PawPal+")
 
-# --- Session state setup ---
-# Streamlit reruns the whole script on every interaction.
-# Storing owner here means it survives button clicks and page refreshes.
 if "owner" not in st.session_state:
     st.session_state.owner = None
 
@@ -40,32 +37,56 @@ if st.session_state.owner is None:
 else:
     pet = st.session_state.owner.pets[0]
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        task_title = st.text_input("Task title", value="Morning walk")
-    with col2:
-        duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=20)
-    with col3:
-        priority_str = st.selectbox("Priority", ["high", "medium", "low"])
+    with st.form("add_task_form", clear_on_submit=True):
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            task_title = st.text_input("Task title", value="Morning walk")
+        with col2:
+            duration = st.number_input("Duration (min)", min_value=1, max_value=240, value=20)
+        with col3:
+            priority_str = st.selectbox("Priority", ["high", "medium", "low"])
+        with col4:
+            frequency = st.selectbox("Frequency", ["daily", "weekly", "once"])
+        deadline_hour = st.number_input("Deadline hour (optional, 0 = none)", min_value=0, max_value=23, value=0)
+        submitted = st.form_submit_button("Add task")
 
-    priority_map = {"high": Priority.HIGH, "medium": Priority.MEDIUM, "low": Priority.LOW}
-
-    if st.button("Add task"):
+    if submitted:
+        priority_map = {"high": Priority.HIGH, "medium": Priority.MEDIUM, "low": Priority.LOW}
         task = Task(
             title=task_title,
             duration_minutes=int(duration),
             priority=priority_map[priority_str],
             category="general",
+            frequency=frequency,
+            deadline_hour=int(deadline_hour) if deadline_hour > 0 else None,
         )
         pet.add_task(task)
         st.success(f"Added: {task_title}")
 
     if pet.tasks:
-        st.write(f"Tasks for {pet.name}:")
+        scheduler = Scheduler(owner=st.session_state.owner, available_minutes=int(available_minutes))
+        sorted_tasks = scheduler.sort_by_time(pet.tasks)
+
+        st.markdown(f"**Tasks for {pet.name}** — sorted by deadline:")
         st.table([
-            {"Title": t.title, "Duration (min)": t.duration_minutes, "Priority": t.priority.name}
-            for t in pet.tasks
+            {
+                "Title": t.title,
+                "Duration (min)": t.duration_minutes,
+                "Priority": t.priority.name,
+                "Deadline": f"{t.deadline_hour}:00" if t.deadline_hour else "—",
+                "Frequency": t.frequency,
+                "Done": "✅" if t.completed else "⬜",
+            }
+            for t in sorted_tasks
         ])
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            pending = scheduler.filter_by_status(completed=False)
+            st.metric("Pending tasks", len(pending))
+        with col_b:
+            done = scheduler.filter_by_status(completed=True)
+            st.metric("Completed today", len(done))
     else:
         st.info("No tasks yet. Add one above.")
 
@@ -79,5 +100,26 @@ else:
         else:
             scheduler = Scheduler(owner=st.session_state.owner, available_minutes=int(available_minutes))
             plan = scheduler.generate_plan()
-            st.success("Here's today's plan:")
-            st.text(plan.summary())
+
+            if plan.conflicts:
+                for conflict in plan.conflicts:
+                    st.warning(f"⚠️ {conflict}")
+
+            if plan.slots:
+                st.success(f"Plan for {plan.plan_date.strftime('%A, %B %d %Y')} — {plan.total_minutes_used} min used")
+                st.table([
+                    {
+                        "Time": slot.start_time,
+                        "Task": slot.task.title,
+                        "Duration (min)": slot.task.duration_minutes,
+                        "Why": slot.reason,
+                    }
+                    for slot in plan.slots
+                ])
+            else:
+                st.error("No tasks could be scheduled — all tasks either exceed your time budget or are already done.")
+
+            if plan.skipped_tasks:
+                with st.expander(f"Skipped tasks ({len(plan.skipped_tasks)})"):
+                    for task in plan.skipped_tasks:
+                        st.write(f"• {task.title} ({task.duration_minutes} min) — didn't fit in budget")
