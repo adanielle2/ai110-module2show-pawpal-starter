@@ -27,6 +27,7 @@ class Task:
         return self.deadline_hour is not None
 
     def mark_complete(self) -> None:
+        """Mark this task as done so the scheduler knows to skip it."""
         self.completed = True
 
 
@@ -39,9 +40,11 @@ class Pet:
     tasks: list[Task] = field(default_factory=list)
 
     def add_task(self, task: Task) -> None:
+        """Add a care task to this pet's task list."""
         self.tasks.append(task)
 
     def remove_task(self, title: str) -> None:
+        """Remove a task from this pet's list by its title."""
         self.tasks = [t for t in self.tasks if t.title != title]
 
 
@@ -51,12 +54,15 @@ class Owner:
     pets: list[Pet] = field(default_factory=list)
 
     def add_pet(self, pet: Pet) -> None:
+        """Add a pet to this owner's household."""
         self.pets.append(pet)
 
     def get_all_pets(self) -> list[Pet]:
+        """Return a copy of the owner's pet list."""
         return list(self.pets)
 
     def get_all_tasks(self) -> list[Task]:
+        """Collect and return every task across all of this owner's pets."""
         tasks = []
         for pet in self.pets:
             tasks.extend(pet.tasks)
@@ -112,6 +118,7 @@ class Scheduler:
 
     @property
     def pet(self) -> Optional[Pet]:
+        """Quick access to the owner's first pet, or None if they don't have any."""
         return self.owner.pets[0] if self.owner.pets else None
 
     def generate_plan(self) -> DailyPlan:
@@ -154,6 +161,7 @@ class Scheduler:
         return used_minutes + task.duration_minutes <= self.available_minutes
 
     def _minutes_to_time(self, minutes: int) -> str:
+        """Convert a number of minutes since midnight into a readable time like '8:30 AM'."""
         hour = (minutes // 60) % 24
         minute = minutes % 60
         period = "AM" if hour < 12 else "PM"
