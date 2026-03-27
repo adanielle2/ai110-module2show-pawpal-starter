@@ -3,9 +3,27 @@
 ## 1. System Design
 
 **a. Initial design**
+1. Register a Pet Profile
+The owner enters basic information about their pet such as name, species, age, and any special notes (e.g., "on medication," "anxious around strangers"). This profile is the foundation for everything else: the scheduler uses it to filter which tasks are relevant and to apply pet-specific constraints when building the daily plan.
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+2. Add and Manage Care Tasks
+The owner creates tasks that need to happen during the day such as things like a morning walk, lunchtime feeding, an evening medication dose, or a weekly grooming session. Each task has at least a name, an estimated duration, and a priority level (e.g., High / Medium / Low). The owner can also edit or remove tasks as the pet's routine changes.
+
+3. Generate and View the Daily Plan
+The owner requests a daily schedule. The app considers all pending tasks, the owner's available time window for the day, and each task's priority, then produces an ordered plan that fits within the time budget. The plan is displayed clearly — showing each task, its scheduled time slot, and a short explanation of why it was placed where it was (e.g., "Medication scheduled first because it is High priority and time-sensitive").
+
+Pet
+— a plain data container for owner-entered profile info. No scheduling logic lives here; it just holds what the scheduler needs to know about the animal.
+Task 
+— represents a single care item. It knows its own duration, priority, category (walk, feeding, meds, etc.), and an optional time window (e.g. "must happen before 9am"). is_time_sensitive() lets the scheduler ask whether a task has a hard window constraint.
+Priority 
+— an IntEnum with values 1/2/3 so that sorting by priority is just a numeric sort. HIGH sorts before MEDIUM sorts before LOW.
+Scheduler 
+— the brain. It holds a Pet, a list of Tasks, and the owner's available minutes for the day. Its one public method, generate_plan(), applies the scheduling logic and returns a DailyPlan.
+DailyPlan 
+— the output. It holds an ordered list of PlanSlots (the tasks that fit), a count of total minutes used, and a list of tasks that couldn't be scheduled (budget exceeded or no valid window). summary() returns a human-readable string for the UI.
+PlanSlot 
+— wraps a single scheduled Task with its assigned start time and a reason string explaining why it was placed there (e.g. "High priority; scheduled first"). This is the key piece that makes the plan explainable.
 
 **b. Design changes**
 
