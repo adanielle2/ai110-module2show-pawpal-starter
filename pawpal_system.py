@@ -242,16 +242,28 @@ class Scheduler:
         return used_minutes + task.duration_minutes <= self.available_minutes
 
     def _detect_conflicts(self, tasks: list[Task]) -> list[str]:
-        """Flag any time-sensitive task that would start after its deadline given the current order."""
+        """Return warning strings for deadline violations and same-window overlaps; never raises an exception."""
         conflicts = []
+
+        deadline_groups: dict[int, list[str]] = {}
+        for task in tasks:
+            if task.is_time_sensitive():
+                deadline_groups.setdefault(task.deadline_hour, []).append(task.title)
+        for hour, titles in deadline_groups.items():
+            if len(titles) > 1:
+                conflicts.append(
+                    f"Overlap: {' and '.join(repr(t) for t in titles)} "
+                    f"are all due by {hour}:00 — they may not both fit in time"
+                )
+
         current_minutes = self.day_start_hour * 60
         for task in tasks:
             if task.is_time_sensitive():
                 start_hour = current_minutes / 60
                 if start_hour >= task.deadline_hour:
                     conflicts.append(
-                        f"'{task.title}' needs to start before {task.deadline_hour}:00 "
-                        f"but would start at {self._minutes_to_time(current_minutes)}"
+                        f"Deadline missed: '{task.title}' needs to start before "
+                        f"{task.deadline_hour}:00 but would start at {self._minutes_to_time(current_minutes)}"
                     )
             current_minutes += task.duration_minutes
         return conflicts

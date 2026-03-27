@@ -6,9 +6,10 @@ mochi.add_task(Task(title="Morning walk",     duration_minutes=30, priority=Prio
 mochi.add_task(Task(title="Breakfast feeding",duration_minutes=10, priority=Priority.HIGH,   category="feeding", deadline_hour=9))
 
 luna = Pet(name="Luna", species="cat", age=5)
-luna.add_task(Task(title="Playtime",      duration_minutes=20, priority=Priority.LOW,  category="enrichment"))
-luna.add_task(Task(title="Medication dose", duration_minutes=5, priority=Priority.HIGH, category="meds", deadline_hour=8))
+luna.add_task(Task(title="Playtime",        duration_minutes=20, priority=Priority.LOW,  category="enrichment"))
+luna.add_task(Task(title="Medication dose", duration_minutes=5,  priority=Priority.HIGH, category="meds",    deadline_hour=8))
 luna.add_task(Task(title="Evening feeding", duration_minutes=10, priority=Priority.HIGH, category="feeding", deadline_hour=18, completed=True))
+luna.add_task(Task(title="Morning meds",    duration_minutes=5,  priority=Priority.HIGH, category="meds",    deadline_hour=8))
 
 jordan = Owner(name="Jordan")
 jordan.add_pet(mochi)
