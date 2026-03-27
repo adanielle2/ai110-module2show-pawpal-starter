@@ -13,11 +13,33 @@ class Priority(IntEnum):
 
 
 @dataclass
+class Task:
+    title: str
+    duration_minutes: int
+    priority: Priority
+    category: str
+    deadline_hour: Optional[int] = None
+    frequency: str = "daily"
+    completed: bool = False
+
+    def is_time_sensitive(self) -> bool:
+        """Return True if this task has a hard deadline constraint."""
+        return self.deadline_hour is not None
+
+
+@dataclass
 class Pet:
     name: str
     species: str
     age: int
     notes: str = ""
+    tasks: list[Task] = field(default_factory=list)
+
+    def add_task(self, task: Task) -> None:
+        self.tasks.append(task)
+
+    def remove_task(self, title: str) -> None:
+        self.tasks = [t for t in self.tasks if t.title != title]
 
 
 @dataclass
@@ -31,18 +53,11 @@ class Owner:
     def get_all_pets(self) -> list[Pet]:
         return list(self.pets)
 
-
-@dataclass
-class Task:
-    title: str
-    duration_minutes: int
-    priority: Priority
-    category: str
-    deadline_hour: Optional[int] = None
-
-    def is_time_sensitive(self) -> bool:
-        """Return True if this task has a hard deadline constraint."""
-        return self.deadline_hour is not None
+    def get_all_tasks(self) -> list[Task]:
+        tasks = []
+        for pet in self.pets:
+            tasks.extend(pet.tasks)
+        return tasks
 
 
 @dataclass
@@ -91,27 +106,20 @@ class Scheduler:
         self.owner = owner
         self.available_minutes = available_minutes
         self.day_start_hour = day_start_hour
-        self.tasks: list[Task] = []
 
     @property
     def pet(self) -> Optional[Pet]:
         return self.owner.pets[0] if self.owner.pets else None
 
-    def add_task(self, task: Task) -> None:
-        """Add a task to the scheduler's task list."""
-        self.tasks.append(task)
-
-    def remove_task(self, title: str) -> None:
-        """Remove a task by title from the task list."""
-        self.tasks = [t for t in self.tasks if t.title != title]
-
     def generate_plan(self) -> DailyPlan:
-        """Sort tasks by priority, fit them into the time budget, and return a DailyPlan."""
+        """Retrieve all tasks from the owner's pets, sort by priority, fit into budget, return a DailyPlan."""
         plan = DailyPlan()
         used = 0
         current_minutes = self.day_start_hour * 60
 
         for task in self._sort_by_priority():
+            if task.completed:
+                continue
             if self._fits_in_budget(task, used):
                 start_time = self._minutes_to_time(current_minutes)
                 if task.priority == Priority.HIGH and task.is_time_sensitive():
@@ -132,9 +140,9 @@ class Scheduler:
         return plan
 
     def _sort_by_priority(self) -> list[Task]:
-        """Return tasks sorted HIGH → MEDIUM → LOW (time-sensitive tasks first within each tier)."""
+        """Return all tasks from owner's pets sorted HIGH → MEDIUM → LOW (time-sensitive first within each tier)."""
         return sorted(
-            self.tasks,
+            self.owner.get_all_tasks(),
             key=lambda t: (t.priority.value, not t.is_time_sensitive()),
         )
 
