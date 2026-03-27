@@ -180,6 +180,21 @@ class Scheduler:
         plan.total_minutes_used = used
         return plan
 
+    def sort_by_time(self, tasks: list[Task]) -> list[Task]:
+        """Sort a list of tasks by deadline hour, earliest first; tasks with no deadline go last."""
+        return sorted(
+            tasks,
+            key=lambda t: t.deadline_hour if t.deadline_hour is not None else 999,
+        )
+
+    def filter_by_status(self, completed: bool) -> list[Task]:
+        """Return all tasks across the owner's pets that match the given completion status."""
+        return [t for t in self.owner.get_all_tasks() if t.completed == completed]
+
+    def filter_by_pet(self, pet_name: str) -> list[Task]:
+        """Return all tasks belonging to a specific pet by name."""
+        return self.owner.get_tasks_by_pet(pet_name)
+
     def _sort_by_priority(self, today: date) -> list[Task]:
         """Sort tasks HIGH→LOW; within each tier, earliest deadline first; skip completed and non-recurring."""
         eligible = [
