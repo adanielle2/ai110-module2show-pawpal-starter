@@ -35,13 +35,13 @@ I kept this simpler version because the math to check exact duration fit adds a 
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+I used AI throughout basically every phase of this project. At the start it helped me brainstorm the classes — I described what the app needed to do and it suggested a starting structure. During implementation it was useful for filling in method bodies once I had the stubs written, especially for things like the `timedelta` logic for recurring tasks and the `defaultdict` pattern for conflict detection. When something wasn't working, I'd paste the broken function and ask what was wrong. The prompts that worked best were specific ones — like "given this skeleton, how should Scheduler retrieve tasks from Owner's pets" — rather than broad ones like "write me a scheduler." Narrow, focused questions got better answers.
+
+Agent mode was the most useful feature overall. Being able to say "implement these method stubs based on the class design" and have it write across multiple methods at once saved a lot of time. Inline chat was good for smaller things like fixing a single method or asking why a test was failing.
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+When AI suggested using a list comprehension to replace the `for` loop inside `_detect_conflicts()`, I looked at it and decided not to use it. The comprehension version put everything on one long line that was hard to read at a glance. The original loop version was more lines but you could follow the logic step by step. I ran the tests either way and they passed both times, so the behavior was identical — the only difference was readability. I kept the loop because I'd rather have code I can understand quickly over code that's technically shorter. I also double-checked the conflict detection output against `main.py` to make sure both versions produced the same warnings.
 
 ---
 
@@ -49,13 +49,13 @@ I kept this simpler version because the math to check exact duration fit adds a 
 
 **a. What you tested**
 
-- What behaviors did you test?
-- Why were these tests important?
+I tested 14 behaviors across five areas. Task behavior: marking a task complete, adding tasks to a pet, and making sure completed tasks are excluded from the generated schedule. Recurring tasks: daily tasks reschedule for tomorrow, weekly tasks for one week later, and one-off tasks stop after completion. Sorting: `sort_by_time()` returns tasks in deadline order with no-deadline tasks at the end. Scheduling logic: HIGH priority always comes before LOW, the time budget is respected so tasks over budget go to skipped, and completed tasks never appear in the plan. Conflict detection: two tasks with the same deadline trigger an overlap warning, and a single time-sensitive task produces no false positive.
+
+These tests mattered because the scheduling logic has a lot of moving parts — priority, deadlines, frequency, budget — and it's easy for one thing to silently break another. Having tests meant I could change the sort logic or conflict detection and immediately know if something else stopped working.
 
 **b. Confidence**
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+I'm fairly confident in the core behaviors — all 14 tests pass and they cover both happy paths and edge cases. The area I'm least sure about is the weekly frequency logic. Right now a weekly task only runs on Mondays, which works as a simple rule but isn't really "every 7 days from last completion." If I had more time I'd test what happens when you complete a weekly task on a Wednesday, and whether the next occurrence lands correctly. I'd also want to test what happens when an owner has zero available minutes, and whether the UI handles an empty plan gracefully.
 
 ---
 
@@ -63,12 +63,12 @@ I kept this simpler version because the math to check exact duration fit adds a 
 
 **a. What went well**
 
-- What part of this project are you most satisfied with?
+The part I'm most satisfied with is how the scheduling logic turned out. `generate_plan()` handles priority, deadlines, budget, completion status, and frequency all at once and still produces a clean explainable output. The fact that every slot in the plan has a `reason` string — so the owner always knows why a task was placed when it was — felt like a good design decision that paid off when connecting it to the UI.
 
 **b. What you would improve**
 
-- If you had another iteration, what would you improve or redesign?
+If I had another iteration I'd redesign the weekly frequency logic to track actual days since last completion rather than just "run on Mondays." I'd also add the ability to edit or reorder tasks in the UI rather than only being able to add them. Right now if you add a task with the wrong priority you have to remove it and re-add it, which is clunky. A simple edit form would make the app much more usable.
 
 **c. Key takeaway**
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+The biggest thing I learned is that AI is genuinely useful as a collaborator, but only if you stay in charge of the design. The AI would happily write code that worked but didn't fit the structure I had planned — like early on when it kept wanting to put task logic inside the Scheduler instead of on the Pet. I had to keep pushing back and saying "no, tasks belong to the pet, not the scheduler." Once I held that line the whole system fit together cleanly. The takeaway is: decide your architecture first, then use AI to fill it in. Don't let it decide the architecture for you.
